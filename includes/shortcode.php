@@ -211,7 +211,7 @@ function _mavo_contact_render_form( array $errors, array $values ): string {
 
 			<!-- Submit -->
 			<div class="mv-contact__actions">
-				<button type="submit" name="mavo_contact_submit" class="mv-contact__submit">
+				<button type="submit" class="mv-contact__submit">
 					<?php esc_html_e( 'Envoyer mon message', 'mavo-contact' ); ?>
 				</button>
 			</div>
