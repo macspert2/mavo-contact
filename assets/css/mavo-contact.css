@@ -1,0 +1,224 @@
+/* Mavo Contact — contact form styles. Only loaded on pages with [mavo_contact_form]. */
+
+/* ===== Layout ===== */
+
+.mv-contact {
+	margin: 2rem 0;
+}
+
+.mv-contact__form {
+	background: var(--mv-color-surface, #fff);
+	border: 0;
+	border-radius: var(--mv-tile-radius, 14px);
+	box-shadow: var(--mv-tile-shadow, 0 8px 22px rgba(58, 58, 58, .08));
+	padding: clamp(1.25rem, 3vw, 2rem);
+	margin-top: 1.5rem;
+}
+
+.mv-contact__heading {
+	margin-top: 0;
+	margin-bottom: .25rem;
+	color: var(--mavo-brown, #886353);
+	font-size: 1.35rem;
+}
+
+.mv-contact__required-note {
+	margin-top: 0;
+	margin-bottom: 1.25rem;
+	font-size: .85rem;
+	color: var(--mv-color-muted, #555);
+}
+
+/* ===== Field grid ===== */
+
+.mv-contact__grid {
+	display: grid;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+@media (min-width: 700px) {
+	.mv-contact__grid--two {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* ===== Individual fields ===== */
+
+.mv-form-field {
+	display: grid;
+	gap: .4rem;
+	margin-bottom: 1rem;
+}
+
+/* Last field in the grid — no extra bottom margin needed */
+.mv-contact__grid .mv-form-field {
+	margin-bottom: 0;
+}
+
+.mv-form-field label {
+	font-weight: 700;
+	font-size: .9375rem;
+	color: var(--mv-color-text, #3a3a3a);
+}
+
+.mv-form-field input,
+.mv-form-field select,
+.mv-form-field textarea {
+	width: 100%;
+	box-sizing: border-box;
+	border: 1px solid var(--mv-color-border, #e6e6e6);
+	border-radius: 10px;
+	padding: .75rem .85rem;
+	font: inherit;
+	font-size: .9375rem;
+	color: var(--mv-color-text, #3a3a3a);
+	background: #fff;
+	box-shadow: inset 0 1px 3px rgba(0, 0, 0, .06);
+	transition: border-color 150ms ease, box-shadow 150ms ease;
+	appearance: none;
+}
+
+.mv-form-field select {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23555' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right .85rem center;
+	padding-right: 2.25rem;
+}
+
+.mv-form-field textarea {
+	resize: vertical;
+	min-height: 140px;
+}
+
+.mv-form-field input:focus,
+.mv-form-field select:focus,
+.mv-form-field textarea:focus {
+	outline: none;
+	border-color: var(--mv-color-primary, #4e74a5);
+	box-shadow: inset 0 1px 3px rgba(0, 0, 0, .04), 0 0 0 3px rgba(78, 116, 165, .18);
+}
+
+/* Error state */
+.mv-form-field--error input,
+.mv-form-field--error select,
+.mv-form-field--error textarea {
+	border-color: #c0392b;
+	box-shadow: inset 0 1px 3px rgba(0, 0, 0, .04), 0 0 0 3px rgba(192, 57, 43, .15);
+}
+
+.mv-form-field__error {
+	font-size: .82rem;
+	color: #6e1f3f;
+	display: block;
+}
+
+/* ===== Collaboration helper note ===== */
+
+.mv-contact__collab-note {
+	font-size: .875rem;
+	color: var(--mv-color-muted, #555);
+	margin-top: -.25rem;
+	margin-bottom: 1rem;
+}
+
+.mv-contact__collab-note a {
+	color: var(--mv-color-primary, #4e74a5);
+}
+
+/* ===== Submit ===== */
+
+.mv-contact__actions {
+	margin-top: 1.25rem;
+	margin-bottom: 1.25rem;
+}
+
+.mv-contact__submit {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: .4rem;
+	border: 0;
+	border-radius: 999px;
+	padding: .75rem 1.5rem;
+	font: inherit;
+	font-size: .9375rem;
+	font-weight: 700;
+	background: var(--mv-color-primary, #4e74a5);
+	color: #fff;
+	cursor: pointer;
+	transition: background 150ms ease, transform 80ms ease;
+}
+
+.mv-contact__submit:hover {
+	background: #3f618c;
+	color: #fff;
+}
+
+.mv-contact__submit:active {
+	transform: translateY(1px);
+}
+
+.mv-contact__submit:focus-visible {
+	outline: 3px solid rgba(78, 116, 165, .4);
+	outline-offset: 2px;
+}
+
+/* ===== Privacy note ===== */
+
+.mv-contact__privacy {
+	font-size: .8rem;
+	color: var(--mv-color-muted, #555);
+	border-top: 1px solid var(--mv-color-border, #e6e6e6);
+	padding-top: 1rem;
+	margin-bottom: 0;
+}
+
+/* ===== Obfuscated email below form ===== */
+
+.mv-contact__email-alt {
+	margin-top: 1rem;
+	font-size: .9rem;
+	color: var(--mv-color-muted, #555);
+}
+
+.mv-obf-email {
+	color: var(--mv-color-primary, #4e74a5);
+}
+
+/* RTL reversal trick — visually corrects the reversed string */
+.mv-obf-text {
+	unicode-bidi: bidi-override;
+	direction: rtl;
+	display: inline;
+}
+
+/* ===== Notices ===== */
+
+.mv-contact-notice {
+	border-radius: 12px;
+	padding: .9rem 1.1rem;
+	margin-bottom: 1.25rem;
+	font-size: .9375rem;
+	line-height: 1.55;
+}
+
+.mv-contact-notice--success {
+	background: var(--mv-color-bg-blue-tint, #eef3f8);
+	color: var(--mv-color-text, #3a3a3a);
+}
+
+.mv-contact-notice--error {
+	background: #fff4f7;
+	color: #6e1f3f;
+}
+
+/* ===== Honeypot ===== */
+
+.mv-contact__trap {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
