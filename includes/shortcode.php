@@ -40,6 +40,7 @@ function _mavo_contact_render_success(): string {
 	?>
 	<section class="mv-contact" aria-label="<?php esc_attr_e( 'Formulaire de contact', 'mavo-contact' ); ?>">
 		<div class="mv-contact-notice mv-contact-notice--success" role="status">
+			<span class="mv-contact-notice__icon" aria-hidden="true">✓</span>
 			<?php esc_html_e( 'Merci, votre message a bien été envoyé. Je vous répondrai dès que possible.', 'mavo-contact' ); ?>
 		</div>
 	</section>
