@@ -14,6 +14,7 @@ define( 'MAVO_CONTACT_VERSION', '1.0.0' );
 define( 'MAVO_CONTACT_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MAVO_CONTACT_URL', plugin_dir_url( __FILE__ ) );
 
+require_once MAVO_CONTACT_DIR . 'includes/i18n.php';
 require_once MAVO_CONTACT_DIR . 'includes/handler.php';
 require_once MAVO_CONTACT_DIR . 'includes/shortcode.php';
 

@@ -1,16 +1,18 @@
 <?php
 /**
  * Form submission handler — processes POST, validates, sends email, redirects.
+ * User-facing error messages are localised via _mavo_contact_t().
+ * Email body is always in French (admin is French-speaking).
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Shared state between handler (template_redirect) and shortcode (the_content).
- * Called with $set to store state, without args to read.
+ * Called with $set to store, without args to read.
  *
  * @param array|null $set
- * @return array { errors: string[], values: string[] }
+ * @return array { errors: string[], values: string[], lang: string }
  */
 function mavo_contact_state( ?array $set = null ): array {
 	static $s = [];
@@ -27,17 +29,21 @@ function mavo_contact_maybe_handle(): void {
 		return;
 	}
 
+	// Capture language at submission time so the shortcode re-renders
+	// in the same language even if Polylang state changes during the request.
+	$lang = _mavo_contact_lang();
+
 	// Nonce.
 	$nonce = sanitize_text_field( wp_unslash( $_POST['mavo_contact_nonce'] ?? '' ) );
 	if ( ! wp_verify_nonce( $nonce, 'mavo_contact_submit' ) ) {
 		wp_die(
-			esc_html__( 'Session expirée. Veuillez rafraîchir la page et réessayer.', 'mavo-contact' ),
-			esc_html__( 'Erreur de sécurité', 'mavo-contact' ),
+			esc_html( _mavo_contact_t( 'session_expired', $lang ) ),
+			esc_html( _mavo_contact_t( 'security_error', $lang ) ),
 			[ 'response' => 403 ]
 		);
 	}
 
-	// Honeypot — silently appear as success.
+	// Honeypot — silently appear as success to bots.
 	if ( ! empty( $_POST['mavo_contact_website'] ) ) {
 		wp_safe_redirect( add_query_arg( 'mavo_contact', 'sent', _mavo_contact_page_url() ) );
 		exit;
@@ -56,7 +62,8 @@ function mavo_contact_maybe_handle(): void {
 	$count = (int) get_transient( $rkey );
 	if ( $count >= 3 ) {
 		mavo_contact_state( [
-			'errors' => [ 'rate_limit' => __( 'Trop de messages ont été envoyés récemment. Merci de réessayer un peu plus tard.', 'mavo-contact' ) ],
+			'lang'   => $lang,
+			'errors' => [ 'rate_limit' => _mavo_contact_t( 'error_rate_limit', $lang ) ],
 			'values' => _mavo_contact_raw_values(),
 		] );
 		return;
@@ -68,59 +75,62 @@ function mavo_contact_maybe_handle(): void {
 	$reason  = sanitize_key( wp_unslash( $_POST['mavo_contact_reason'] ?? '' ) );
 	$message = sanitize_textarea_field( wp_unslash( $_POST['mavo_contact_message'] ?? '' ) );
 
-	// Validate.
-	$allowed_reasons = _mavo_contact_reasons();
+	// Validate — error messages in visitor's language.
+	$allowed_reasons = _mavo_contact_reasons( $lang );
 	$errors          = [];
 
 	if ( mb_strlen( $name ) < 2 || mb_strlen( $name ) > 80 ) {
-		$errors['mavo_contact_name'] = __( "Merci d'indiquer votre nom (2 à 80 caractères).", 'mavo-contact' );
+		$errors['mavo_contact_name'] = _mavo_contact_t( 'error_name', $lang );
 	}
 	if ( ! is_email( $email ) ) {
-		$errors['mavo_contact_email'] = __( "Merci d'indiquer une adresse e-mail valide.", 'mavo-contact' );
+		$errors['mavo_contact_email'] = _mavo_contact_t( 'error_email', $lang );
 	}
 	if ( ! array_key_exists( $reason, $allowed_reasons ) ) {
-		$errors['mavo_contact_reason'] = __( 'Merci de sélectionner un sujet.', 'mavo-contact' );
+		$errors['mavo_contact_reason'] = _mavo_contact_t( 'error_reason', $lang );
 	}
 	$msg_len = mb_strlen( $message );
 	if ( $msg_len < 20 ) {
-		$errors['mavo_contact_message'] = __( "Merci d'écrire un message d'au moins 20 caractères.", 'mavo-contact' );
+		$errors['mavo_contact_message'] = _mavo_contact_t( 'error_msg_short', $lang );
 	} elseif ( $msg_len > 5000 ) {
-		$errors['mavo_contact_message'] = __( 'Le message est trop long (5 000 caractères maximum).', 'mavo-contact' );
+		$errors['mavo_contact_message'] = _mavo_contact_t( 'error_msg_long', $lang );
 	} elseif ( preg_match_all( '/https?:\/\//i', $message ) > 3 ) {
-		$errors['mavo_contact_message'] = __( 'Le message contient trop de liens.', 'mavo-contact' );
+		$errors['mavo_contact_message'] = _mavo_contact_t( 'error_msg_links', $lang );
 	}
 
 	if ( ! empty( $errors ) ) {
 		mavo_contact_state( [
+			'lang'   => $lang,
 			'errors' => $errors,
 			'values' => compact( 'name', 'email', 'reason', 'message' ),
 		] );
 		return;
 	}
 
-	// Build email.
-	$reason_label = $allowed_reasons[ $reason ];
-	$recipient    = apply_filters( 'mavo_contact_recipient_email', get_option( 'admin_email' ) );
-	$site_domain  = (string) ( wp_parse_url( home_url(), PHP_URL_HOST ) ?? '' );
-	$subject      = sprintf( '[Maman Voyage] Contact — %s', $reason_label );
-	$page_url     = sanitize_url( wp_unslash( $_SERVER['HTTP_REFERER'] ?? '' ) );
-	$user_agent   = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ?? '' ) );
+	// Email body always in French — admin is French-speaking.
+	// Use the French reason label regardless of submission language.
+	$reason_label_fr = _mavo_contact_reasons( 'fr' )[ $reason ] ?? $reason;
+	$recipient       = apply_filters( 'mavo_contact_recipient_email', get_option( 'admin_email' ) );
+	$site_domain     = (string) ( wp_parse_url( home_url(), PHP_URL_HOST ) ?? '' );
+	$subject         = sprintf( '[Maman Voyage] Contact — %s', $reason_label_fr );
+	$page_url        = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ?? '' ) );
+	$user_agent      = sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ?? '' ) );
 
 	$body = implode( "\n", [
-		__( 'Nouveau message depuis le formulaire de contact Maman Voyage', 'mavo-contact' ),
+		'Nouveau message depuis le formulaire de contact Maman Voyage',
 		'',
-		sprintf( '%s : %s', __( 'Nom', 'mavo-contact' ), $name ),
-		sprintf( '%s : %s', __( 'E-mail', 'mavo-contact' ), $email ),
-		sprintf( '%s : %s', __( 'Sujet', 'mavo-contact' ), $reason_label ),
-		sprintf( '%s : %s', __( 'Page', 'mavo-contact' ), $page_url ),
+		"Nom : {$name}",
+		"E-mail : {$email}",
+		"Sujet : {$reason_label_fr}",
+		"Langue : {$lang}",
+		"Page : {$page_url}",
 		'',
-		__( 'Message :', 'mavo-contact' ),
+		'Message :',
 		$message,
 		'',
 		'---',
-		sprintf( 'IP : %s', $ip ),
-		sprintf( 'User-Agent : %s', $user_agent ),
-		sprintf( '%s : %s', __( 'Envoyé depuis', 'mavo-contact' ), get_site_url() ),
+		"IP : {$ip}",
+		"User-Agent : {$user_agent}",
+		'Envoyé depuis : ' . get_site_url(),
 	] );
 
 	$headers = [
@@ -137,27 +147,12 @@ function mavo_contact_maybe_handle(): void {
 		exit;
 	}
 
-	// wp_mail() returned false — let the user know without revealing detail.
+	// wp_mail() returned false.
 	mavo_contact_state( [
-		'errors' => [
-			'send_failed' => __( "Une erreur est survenue lors de l'envoi. Merci de réessayer ou d'utiliser l'adresse e-mail directe.", 'mavo-contact' ),
-		],
+		'lang'   => $lang,
+		'errors' => [ 'send_failed' => _mavo_contact_t( 'error_send_failed', $lang ) ],
 		'values' => compact( 'name', 'email', 'reason', 'message' ),
 	] );
-}
-
-/**
- * Reason labels. Used by handler and shortcode (keep in sync).
- *
- * @return array<string,string>
- */
-function _mavo_contact_reasons(): array {
-	return [
-		'question-voyage'      => __( 'Question voyage', 'mavo-contact' ),
-		'collaboration-presse' => __( 'Collaboration / presse', 'mavo-contact' ),
-		'probleme-technique'   => __( 'Problème technique', 'mavo-contact' ),
-		'autre'                => __( 'Autre message', 'mavo-contact' ),
-	];
 }
 
 /**
@@ -174,16 +169,12 @@ function _mavo_contact_raw_values(): array {
 	];
 }
 
-/**
- * Best-effort client IP. Uses REMOTE_ADDR; never trusts CF header blindly.
- */
+/** Best-effort client IP — trusts only REMOTE_ADDR. */
 function _mavo_contact_ip(): string {
 	return sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0' ) );
 }
 
-/**
- * Canonical URL of the current queried page (without any query args).
- */
+/** Canonical URL of the current queried page (no query args). */
 function _mavo_contact_page_url(): string {
 	$id = get_queried_object_id();
 	if ( $id ) {

@@ -1,12 +1,12 @@
 <?php
 /**
  * [mavo_contact_form] shortcode — renders the contact form or success notice.
+ * All UI strings come from _mavo_contact_t() in i18n.php.
  */
 
 defined( 'ABSPATH' ) || exit;
 
-// Register CSS globally so it is ready to enqueue; actual enqueue happens
-// inside the shortcode so it only loads on pages where the shortcode runs.
+// Register CSS globally; actual enqueue happens inside the shortcode.
 add_action( 'wp_enqueue_scripts', static function () {
 	wp_register_style(
 		'mavo-contact',
@@ -21,35 +21,37 @@ add_shortcode( 'mavo_contact_form', 'mavo_contact_form_shortcode' );
 function mavo_contact_form_shortcode( array $atts = [] ): string {
 	wp_enqueue_style( 'mavo-contact' );
 
-	$atts = shortcode_atts( [], $atts, 'mavo_contact_form' );
+	// Determine language: use state lang if set (validation error path),
+	// otherwise current Polylang language.
+	$state = mavo_contact_state();
+	$lang  = $state['lang'] ?? _mavo_contact_lang();
 
 	// Success state after PRG redirect.
 	if ( isset( $_GET['mavo_contact'] ) && 'sent' === $_GET['mavo_contact'] ) {
-		return _mavo_contact_render_success();
+		return _mavo_contact_render_success( $lang );
 	}
 
-	$state  = mavo_contact_state();
 	$errors = $state['errors'] ?? [];
 	$values = $state['values'] ?? [];
 
-	return _mavo_contact_render_form( $errors, $values );
+	return _mavo_contact_render_form( $lang, $errors, $values );
 }
 
-function _mavo_contact_render_success(): string {
+function _mavo_contact_render_success( string $lang ): string {
 	ob_start();
 	?>
-	<section class="mv-contact" aria-label="<?php esc_attr_e( 'Formulaire de contact', 'mavo-contact' ); ?>">
+	<section class="mv-contact" aria-label="<?php echo esc_attr( _mavo_contact_t( 'heading', $lang ) ); ?>">
 		<div class="mv-contact-notice mv-contact-notice--success" role="status">
 			<span class="mv-contact-notice__icon" aria-hidden="true">✓</span>
-			<?php esc_html_e( 'Merci, votre message a bien été envoyé. Je vous répondrai dès que possible.', 'mavo-contact' ); ?>
+			<?php echo esc_html( _mavo_contact_t( 'success', $lang ) ); ?>
 		</div>
 	</section>
 	<?php
 	return ob_get_clean();
 }
 
-function _mavo_contact_render_form( array $errors, array $values ): string {
-	$reasons       = _mavo_contact_reasons();
+function _mavo_contact_render_form( string $lang, array $errors, array $values ): string {
+	$reasons       = _mavo_contact_reasons( $lang );
 	$has_errors    = ! empty( $errors );
 	$general_error = $errors['rate_limit'] ?? $errors['send_failed'] ?? null;
 
@@ -59,11 +61,7 @@ function _mavo_contact_render_form( array $errors, array $values ): string {
 
 		<?php if ( $has_errors ) : ?>
 		<div class="mv-contact-notice mv-contact-notice--error" role="alert">
-			<?php if ( $general_error ) : ?>
-				<?php echo esc_html( $general_error ); ?>
-			<?php else : ?>
-				<?php esc_html_e( 'Merci de vérifier les champs indiqués ci-dessous.', 'mavo-contact' ); ?>
-			<?php endif; ?>
+			<?php echo esc_html( $general_error ?? _mavo_contact_t( 'error_summary', $lang ) ); ?>
 		</div>
 		<?php endif; ?>
 
@@ -75,161 +73,66 @@ function _mavo_contact_render_form( array $errors, array $values ): string {
 
 			<!-- Honeypot — hidden from real users and screen readers -->
 			<div class="mv-contact__trap" aria-hidden="true">
-				<label for="mavo_contact_website">Site web</label>
+				<label for="mavo_contact_website">Website</label>
 				<input type="text" id="mavo_contact_website" name="mavo_contact_website" tabindex="-1" autocomplete="off">
 			</div>
 
 			<h2 id="mv-contact-title" class="mv-contact__heading">
-				<?php esc_html_e( 'Écrivez-moi', 'mavo-contact' ); ?>
+				<?php echo esc_html( _mavo_contact_t( 'heading', $lang ) ); ?>
 			</h2>
 
 			<p class="mv-contact__required-note">
-				<span aria-hidden="true">*</span> <?php esc_html_e( 'Les champs marqués d\'un * sont obligatoires.', 'mavo-contact' ); ?>
+				<span aria-hidden="true">*</span> <?php echo esc_html( _mavo_contact_t( 'required_note', $lang ) ); ?>
 			</p>
 
 			<!-- Name + Email — two columns on desktop -->
 			<div class="mv-contact__grid mv-contact__grid--two">
 
-				<div class="mv-form-field <?php echo $errors['mavo_contact_name'] ?? false ? 'mv-form-field--error' : ''; ?>">
-					<label for="mavo_contact_name">
-						<?php esc_html_e( 'Votre nom', 'mavo-contact' ); ?>
-						<span aria-hidden="true"> *</span>
-					</label>
-					<input
-						id="mavo_contact_name"
-						name="mavo_contact_name"
-						type="text"
-						autocomplete="name"
-						required
-						maxlength="80"
-						value="<?php echo esc_attr( $values['name'] ?? '' ); ?>"
-						<?php if ( isset( $errors['mavo_contact_name'] ) ) : ?>
-						aria-describedby="mavo_contact_name_error"
-						aria-invalid="true"
-						<?php endif; ?>
-					>
-					<?php if ( isset( $errors['mavo_contact_name'] ) ) : ?>
-					<span id="mavo_contact_name_error" class="mv-form-field__error" role="alert">
-						<?php echo esc_html( $errors['mavo_contact_name'] ); ?>
-					</span>
-					<?php endif; ?>
-				</div>
+				<?php _mavo_contact_field_text( 'name', $lang, $errors, $values ); ?>
+				<?php _mavo_contact_field_email( $lang, $errors, $values ); ?>
 
-				<div class="mv-form-field <?php echo $errors['mavo_contact_email'] ?? false ? 'mv-form-field--error' : ''; ?>">
-					<label for="mavo_contact_email">
-						<?php esc_html_e( 'Votre adresse e-mail', 'mavo-contact' ); ?>
-						<span aria-hidden="true"> *</span>
-					</label>
-					<input
-						id="mavo_contact_email"
-						name="mavo_contact_email"
-						type="email"
-						autocomplete="email"
-						required
-						maxlength="254"
-						value="<?php echo esc_attr( $values['email'] ?? '' ); ?>"
-						<?php if ( isset( $errors['mavo_contact_email'] ) ) : ?>
-						aria-describedby="mavo_contact_email_error"
-						aria-invalid="true"
-						<?php endif; ?>
-					>
-					<?php if ( isset( $errors['mavo_contact_email'] ) ) : ?>
-					<span id="mavo_contact_email_error" class="mv-form-field__error" role="alert">
-						<?php echo esc_html( $errors['mavo_contact_email'] ); ?>
-					</span>
-					<?php endif; ?>
-				</div>
-
-			</div><!-- /.mv-contact__grid--two -->
-
-			<!-- Reason -->
-			<div class="mv-form-field <?php echo $errors['mavo_contact_reason'] ?? false ? 'mv-form-field--error' : ''; ?>">
-				<label for="mavo_contact_reason">
-					<?php esc_html_e( 'Sujet de votre message', 'mavo-contact' ); ?>
-					<span aria-hidden="true"> *</span>
-				</label>
-				<select
-					id="mavo_contact_reason"
-					name="mavo_contact_reason"
-					required
-					<?php if ( isset( $errors['mavo_contact_reason'] ) ) : ?>
-					aria-describedby="mavo_contact_reason_error"
-					aria-invalid="true"
-					<?php endif; ?>
-				>
-					<option value="" disabled <?php selected( '', $values['reason'] ?? '' ); ?>>
-						— <?php esc_html_e( 'Choisir un sujet', 'mavo-contact' ); ?> —
-					</option>
-					<?php foreach ( $reasons as $rval => $rlabel ) : ?>
-					<option value="<?php echo esc_attr( $rval ); ?>" <?php selected( $rval, $values['reason'] ?? '' ); ?>>
-						<?php echo esc_html( $rlabel ); ?>
-					</option>
-					<?php endforeach; ?>
-				</select>
-				<?php if ( isset( $errors['mavo_contact_reason'] ) ) : ?>
-				<span id="mavo_contact_reason_error" class="mv-form-field__error" role="alert">
-					<?php echo esc_html( $errors['mavo_contact_reason'] ); ?>
-				</span>
-				<?php endif; ?>
 			</div>
 
+			<?php _mavo_contact_field_reason( $lang, $reasons, $errors, $values ); ?>
+
+			<?php
+			// Collaboration helper — only shown on French (no EN/DE translation of that page).
+			if ( 'fr' === $lang ) :
+				$collab_url  = apply_filters( 'mavo_contact_collab_url', _mavo_contact_t( 'collab_url', 'fr' ) );
+				$collab_text = _mavo_contact_t( 'collab_link_text', 'fr' );
+				$collab_note = _mavo_contact_t( 'collab_note', 'fr' );
+			?>
 			<p class="mv-contact__collab-note">
 				<?php
 				printf(
-					/* translators: %s = URL of "Travailler avec Maman Voyage" page */
-					esc_html__( 'Pour une collaboration, une demande presse ou un partenariat, vous pouvez aussi consulter la page %s.', 'mavo-contact' ),
-					'<a href="' . esc_url( apply_filters( 'mavo_contact_collab_url', 'https://www.mamanvoyage.com/travailler-avec-maman-voyage/' ) ) . '">'
-					. esc_html__( 'Travailler avec Maman Voyage', 'mavo-contact' )
-					. '</a>'
+					esc_html( $collab_note ),
+					'<a href="' . esc_url( $collab_url ) . '">' . esc_html( $collab_text ) . '</a>'
 				);
 				?>
 			</p>
+			<?php endif; ?>
 
-			<!-- Message -->
-			<div class="mv-form-field <?php echo $errors['mavo_contact_message'] ?? false ? 'mv-form-field--error' : ''; ?>">
-				<label for="mavo_contact_message">
-					<?php esc_html_e( 'Votre message', 'mavo-contact' ); ?>
-					<span aria-hidden="true"> *</span>
-				</label>
-				<textarea
-					id="mavo_contact_message"
-					name="mavo_contact_message"
-					rows="7"
-					required
-					maxlength="5000"
-					<?php if ( isset( $errors['mavo_contact_message'] ) ) : ?>
-					aria-describedby="mavo_contact_message_error"
-					aria-invalid="true"
-					<?php endif; ?>
-				><?php echo esc_textarea( $values['message'] ?? '' ); ?></textarea>
-				<?php if ( isset( $errors['mavo_contact_message'] ) ) : ?>
-				<span id="mavo_contact_message_error" class="mv-form-field__error" role="alert">
-					<?php echo esc_html( $errors['mavo_contact_message'] ); ?>
-				</span>
-				<?php endif; ?>
-			</div>
+			<?php _mavo_contact_field_message( $lang, $errors, $values ); ?>
 
-			<!-- Submit -->
 			<div class="mv-contact__actions">
 				<button type="submit" class="mv-contact__submit">
-					<?php esc_html_e( 'Envoyer mon message', 'mavo-contact' ); ?>
+					<?php echo esc_html( _mavo_contact_t( 'submit', $lang ) ); ?>
 				</button>
 			</div>
 
-			<!-- Privacy note -->
 			<p class="mv-contact__privacy">
-				<?php esc_html_e( 'Les informations envoyées via ce formulaire servent uniquement à vous répondre. Elles ne sont pas revendues, utilisées pour une newsletter, ni transmises à un service externe de gestion de formulaires.', 'mavo-contact' ); ?>
+				<?php echo esc_html( _mavo_contact_t( 'privacy', $lang ) ); ?>
 			</p>
 
 		</form>
 
 		<?php
-		$obf = _mavo_contact_obfuscated_email_html();
+		$obf = _mavo_contact_obfuscated_email_html( $lang );
 		if ( $obf ) :
 		?>
 		<p class="mv-contact__email-alt">
-			<?php esc_html_e( "Vous pouvez aussi m'écrire directement à cette adresse :", 'mavo-contact' ); ?>
-			<?php echo $obf; // already escaped inside the function ?>
+			<?php echo esc_html( _mavo_contact_t( 'email_alt', $lang ) ); ?>
+			<?php echo $obf; // escaped inside the function ?>
 		</p>
 		<?php endif; ?>
 
@@ -238,14 +141,143 @@ function _mavo_contact_render_form( array $errors, array $values ): string {
 	return ob_get_clean();
 }
 
+// ---------------------------------------------------------------------------
+// Field renderers — extracted to keep _mavo_contact_render_form() readable.
+// ---------------------------------------------------------------------------
+
+function _mavo_contact_field_text( string $key, string $lang, array $errors, array $values ): void {
+	$id        = 'mavo_contact_' . $key;
+	$has_error = isset( $errors[ $id ] );
+	$label_key = 'label_' . $key; // e.g. 'label_name'
+	?>
+	<div class="mv-form-field <?php echo $has_error ? 'mv-form-field--error' : ''; ?>">
+		<label for="<?php echo esc_attr( $id ); ?>">
+			<?php echo esc_html( _mavo_contact_t( $label_key, $lang ) ); ?>
+			<span aria-hidden="true"> *</span>
+		</label>
+		<input
+			id="<?php echo esc_attr( $id ); ?>"
+			name="<?php echo esc_attr( $id ); ?>"
+			type="text"
+			autocomplete="<?php echo esc_attr( $key ); ?>"
+			required
+			maxlength="80"
+			value="<?php echo esc_attr( $values[ $key ] ?? '' ); ?>"
+			<?php if ( $has_error ) : ?>
+			aria-describedby="<?php echo esc_attr( $id . '_error' ); ?>"
+			aria-invalid="true"
+			<?php endif; ?>
+		>
+		<?php if ( $has_error ) : ?>
+		<span id="<?php echo esc_attr( $id . '_error' ); ?>" class="mv-form-field__error" role="alert">
+			<?php echo esc_html( $errors[ $id ] ); ?>
+		</span>
+		<?php endif; ?>
+	</div>
+	<?php
+}
+
+function _mavo_contact_field_email( string $lang, array $errors, array $values ): void {
+	$id        = 'mavo_contact_email';
+	$has_error = isset( $errors[ $id ] );
+	?>
+	<div class="mv-form-field <?php echo $has_error ? 'mv-form-field--error' : ''; ?>">
+		<label for="<?php echo esc_attr( $id ); ?>">
+			<?php echo esc_html( _mavo_contact_t( 'label_email', $lang ) ); ?>
+			<span aria-hidden="true"> *</span>
+		</label>
+		<input
+			id="<?php echo esc_attr( $id ); ?>"
+			name="<?php echo esc_attr( $id ); ?>"
+			type="email"
+			autocomplete="email"
+			required
+			maxlength="254"
+			value="<?php echo esc_attr( $values['email'] ?? '' ); ?>"
+			<?php if ( $has_error ) : ?>
+			aria-describedby="<?php echo esc_attr( $id . '_error' ); ?>"
+			aria-invalid="true"
+			<?php endif; ?>
+		>
+		<?php if ( $has_error ) : ?>
+		<span id="<?php echo esc_attr( $id . '_error' ); ?>" class="mv-form-field__error" role="alert">
+			<?php echo esc_html( $errors[ $id ] ); ?>
+		</span>
+		<?php endif; ?>
+	</div>
+	<?php
+}
+
+function _mavo_contact_field_reason( string $lang, array $reasons, array $errors, array $values ): void {
+	$id        = 'mavo_contact_reason';
+	$has_error = isset( $errors[ $id ] );
+	?>
+	<div class="mv-form-field <?php echo $has_error ? 'mv-form-field--error' : ''; ?>">
+		<label for="<?php echo esc_attr( $id ); ?>">
+			<?php echo esc_html( _mavo_contact_t( 'label_reason', $lang ) ); ?>
+			<span aria-hidden="true"> *</span>
+		</label>
+		<select
+			id="<?php echo esc_attr( $id ); ?>"
+			name="<?php echo esc_attr( $id ); ?>"
+			required
+			<?php if ( $has_error ) : ?>
+			aria-describedby="<?php echo esc_attr( $id . '_error' ); ?>"
+			aria-invalid="true"
+			<?php endif; ?>
+		>
+			<option value="" disabled <?php selected( '', $values['reason'] ?? '' ); ?>>
+				<?php echo esc_html( _mavo_contact_t( 'reason_placeholder', $lang ) ); ?>
+			</option>
+			<?php foreach ( $reasons as $rval => $rlabel ) : ?>
+			<option value="<?php echo esc_attr( $rval ); ?>" <?php selected( $rval, $values['reason'] ?? '' ); ?>>
+				<?php echo esc_html( $rlabel ); ?>
+			</option>
+			<?php endforeach; ?>
+		</select>
+		<?php if ( $has_error ) : ?>
+		<span id="<?php echo esc_attr( $id . '_error' ); ?>" class="mv-form-field__error" role="alert">
+			<?php echo esc_html( $errors[ $id ] ); ?>
+		</span>
+		<?php endif; ?>
+	</div>
+	<?php
+}
+
+function _mavo_contact_field_message( string $lang, array $errors, array $values ): void {
+	$id        = 'mavo_contact_message';
+	$has_error = isset( $errors[ $id ] );
+	?>
+	<div class="mv-form-field <?php echo $has_error ? 'mv-form-field--error' : ''; ?>">
+		<label for="<?php echo esc_attr( $id ); ?>">
+			<?php echo esc_html( _mavo_contact_t( 'label_message', $lang ) ); ?>
+			<span aria-hidden="true"> *</span>
+		</label>
+		<textarea
+			id="<?php echo esc_attr( $id ); ?>"
+			name="<?php echo esc_attr( $id ); ?>"
+			rows="7"
+			required
+			maxlength="5000"
+			<?php if ( $has_error ) : ?>
+			aria-describedby="<?php echo esc_attr( $id . '_error' ); ?>"
+			aria-invalid="true"
+			<?php endif; ?>
+		><?php echo esc_textarea( $values['message'] ?? '' ); ?></textarea>
+		<?php if ( $has_error ) : ?>
+		<span id="<?php echo esc_attr( $id . '_error' ); ?>" class="mv-form-field__error" role="alert">
+			<?php echo esc_html( $errors[ $id ] ); ?>
+		</span>
+		<?php endif; ?>
+	</div>
+	<?php
+}
+
 /**
- * Renders an obfuscated email link using the CSS RTL text-reversal technique.
- * Screen readers get the aria-label; scrapers see a reversed string in the HTML.
- * The mailto: href is fully HTML-entity-encoded.
- *
- * Source email: apply_filters( 'mavo_contact_public_email', admin_email )
+ * Obfuscated email link using CSS RTL text-reversal + entity-encoded href.
+ * Screen readers get the aria-label; HTML source shows a reversed string.
  */
-function _mavo_contact_obfuscated_email_html(): string {
+function _mavo_contact_obfuscated_email_html( string $lang ): string {
 	$email = (string) apply_filters( 'mavo_contact_public_email', get_option( 'admin_email' ) );
 	if ( ! is_email( $email ) ) {
 		return '';
@@ -256,21 +288,18 @@ function _mavo_contact_obfuscated_email_html(): string {
 		return '';
 	}
 
-	// Entity-encode the full mailto: URI so it is not plain text in the source.
-	$raw_href  = 'mailto:' . $email;
-	$enc_href  = '';
-	$href_len  = strlen( $raw_href );
-	for ( $i = 0; $i < $href_len; $i++ ) {
+	// Entity-encode the full mailto: URI character by character.
+	$enc_href = '';
+	$raw_href = 'mailto:' . $email;
+	for ( $i = 0, $len = strlen( $raw_href ); $i < $len; $i++ ) {
 		$enc_href .= '&#' . ord( $raw_href[ $i ] ) . ';';
 	}
 
-	// Reverse the visible email string — CSS `direction:rtl` displays it
-	// correctly but HTML source shows the reversed form, confusing scrapers.
+	// Reversed string displayed via CSS direction:rtl.
 	$reversed = strrev( $email ); // safe: email addresses are always ASCII
 
 	$aria = sprintf(
-		/* translators: %1$s = email user part, %2$s = domain part */
-		__( 'Écrire à %1$s [at] %2$s', 'mavo-contact' ),
+		_mavo_contact_t( 'email_aria', $lang ),
 		$parts[0],
 		$parts[1]
 	);
