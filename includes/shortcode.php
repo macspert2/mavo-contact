@@ -72,9 +72,9 @@ function _mavo_contact_render_form( string $lang, array $errors, array $values )
 			<input type="hidden" name="mavo_contact_started_at" value="<?php echo esc_attr( (string) time() ); ?>">
 
 			<!-- Honeypot — hidden from real users and screen readers -->
-			<div class="mv-contact__trap" aria-hidden="true">
-				<label for="mavo_contact_website">Website</label>
-				<input type="text" id="mavo_contact_website" name="mavo_contact_website" tabindex="-1" autocomplete="off">
+			<div class="mv-contact-hp" aria-hidden="true">
+				<label for="mv_contact_website">Website</label>
+				<input type="text" id="mv_contact_website" name="website" tabindex="-1" autocomplete="off">
 			</div>
 
 			<h2 id="mv-contact-title" class="mv-contact__heading">

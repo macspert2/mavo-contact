@@ -44,7 +44,7 @@ function mavo_contact_maybe_handle(): void {
 	}
 
 	// Honeypot — silently appear as success to bots.
-	if ( ! empty( $_POST['mavo_contact_website'] ) ) {
+	if ( ! empty( $_POST['website'] ) ) {
 		wp_safe_redirect( add_query_arg( 'mavo_contact', 'sent', _mavo_contact_page_url() ) );
 		exit;
 	}
