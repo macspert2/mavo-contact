@@ -44,7 +44,7 @@ function mavo_contact_maybe_handle(): void {
 	}
 
 	// Honeypot — silently appear as success to bots.
-	if ( ! empty( $_POST['website'] ) ) {
+	if ( ! empty( $_POST['telephone'] ) ) {
 		wp_safe_redirect( add_query_arg( 'mavo_contact', 'sent', _mavo_contact_page_url() ) );
 		exit;
 	}
@@ -104,6 +104,14 @@ function mavo_contact_maybe_handle(): void {
 			'values' => compact( 'name', 'email', 'reason', 'message' ),
 		] );
 		return;
+	}
+
+	// Akismet spam check — runs only when the plugin is active and configured.
+	// Fake-succeed so bots don't learn they were caught.
+	if ( _mavo_contact_is_akismet_spam( $name, $email, $message, $ip ) ) {
+		set_transient( $rkey, $count + 1, HOUR_IN_SECONDS );
+		wp_safe_redirect( add_query_arg( 'mavo_contact', 'sent', _mavo_contact_page_url() ) );
+		exit;
 	}
 
 	// Email body always in French — admin is French-speaking.
@@ -172,6 +180,29 @@ function _mavo_contact_raw_values(): array {
 /** Best-effort client IP — trusts only REMOTE_ADDR. */
 function _mavo_contact_ip(): string {
 	return sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0' ) );
+}
+
+/**
+ * Returns true if Akismet considers this submission spam.
+ * Fails open (returns false) when Akismet is inactive or unconfigured.
+ */
+function _mavo_contact_is_akismet_spam( string $name, string $email, string $message, string $ip ): bool {
+	if ( ! class_exists( 'Akismet' ) || ! Akismet::get_api_key() ) {
+		return false;
+	}
+	$fields = [
+		'blog'                 => home_url(),
+		'user_ip'              => $ip,
+		'user_agent'           => sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ?? '' ) ),
+		'referrer'             => sanitize_text_field( wp_unslash( $_SERVER['HTTP_REFERER'] ?? '' ) ),
+		'permalink'            => _mavo_contact_page_url(),
+		'comment_type'         => 'contact-form',
+		'comment_author'       => $name,
+		'comment_author_email' => $email,
+		'comment_content'      => $message,
+	];
+	$response = Akismet::http_post( http_build_query( $fields ), 'comment-check' );
+	return isset( $response[1] ) && 'true' === trim( (string) $response[1] );
 }
 
 /** Canonical URL of the current queried page (no query args). */

@@ -73,8 +73,8 @@ function _mavo_contact_render_form( string $lang, array $errors, array $values )
 
 			<!-- Honeypot — hidden from real users and screen readers -->
 			<div class="mv-contact-hp" aria-hidden="true">
-				<label for="mv_contact_website">Website</label>
-				<input type="text" id="mv_contact_website" name="website" tabindex="-1" autocomplete="off">
+				<label for="mv_contact_telephone">Phone</label>
+				<input type="text" id="mv_contact_telephone" name="telephone" tabindex="-1" autocomplete="off">
 			</div>
 
 			<h2 id="mv-contact-title" class="mv-contact__heading">
