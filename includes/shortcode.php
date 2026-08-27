@@ -16,10 +16,40 @@ add_action( 'wp_enqueue_scripts', static function () {
 	);
 } );
 
+/**
+ * Keep pages holding the form out of full-page caches (Swift Performance and
+ * every other cache honouring DONOTCACHEPAGE).
+ *
+ * The form HTML embeds a WP nonce, valid ~24 h, and the anti-bot timestamp.
+ * Cached HTML freezes both: visitors get a long-dead nonce on a page that only
+ * just loaded, and the submission is rejected as expired.
+ */
+add_action( 'template_redirect', '_mavo_contact_no_cache_on_form_pages', 0 );
+
+function _mavo_contact_no_cache_on_form_pages(): void {
+	$queried = get_queried_object();
+	if ( ! $queried instanceof WP_Post || ! has_shortcode( (string) $queried->post_content, 'mavo_contact_form' ) ) {
+		return;
+	}
+	_mavo_contact_donotcache();
+	nocache_headers(); // Safe here: template output has not started yet.
+}
+
+/** Flag the current response as non-cacheable. */
+function _mavo_contact_donotcache(): void {
+	if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+		define( 'DONOTCACHEPAGE', true );
+	}
+}
+
 add_shortcode( 'mavo_contact_form', 'mavo_contact_form_shortcode' );
 
 function mavo_contact_form_shortcode( array $atts = [] ): string {
 	wp_enqueue_style( 'mavo-contact' );
+
+	// Fallback for placements template_redirect cannot see (block, widget,
+	// template part): caches decide whether to store when the buffer closes.
+	_mavo_contact_donotcache();
 
 	// Determine language: use state lang if set (validation error path),
 	// otherwise current Polylang language.
@@ -53,7 +83,7 @@ function _mavo_contact_render_success( string $lang ): string {
 function _mavo_contact_render_form( string $lang, array $errors, array $values ): string {
 	$reasons       = _mavo_contact_reasons( $lang );
 	$has_errors    = ! empty( $errors );
-	$general_error = $errors['rate_limit'] ?? $errors['send_failed'] ?? null;
+	$general_error = $errors['nonce'] ?? $errors['rate_limit'] ?? $errors['send_failed'] ?? null;
 
 	ob_start();
 	?>

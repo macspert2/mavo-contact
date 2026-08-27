@@ -33,14 +33,18 @@ function mavo_contact_maybe_handle(): void {
 	// in the same language even if Polylang state changes during the request.
 	$lang = _mavo_contact_lang();
 
-	// Nonce.
+	// Nonce. A stale nonce (page served from a full-page cache, or a tab left
+	// open for more than a day) must not cost the visitor their message:
+	// re-render the form with a fresh nonce and everything they typed still in
+	// place. No mail is sent on this path, so CSRF protection is unchanged.
 	$nonce = sanitize_text_field( wp_unslash( $_POST['mavo_contact_nonce'] ?? '' ) );
 	if ( ! wp_verify_nonce( $nonce, 'mavo_contact_submit' ) ) {
-		wp_die(
-			esc_html( _mavo_contact_t( 'session_expired', $lang ) ),
-			esc_html( _mavo_contact_t( 'security_error', $lang ) ),
-			[ 'response' => 403 ]
-		);
+		mavo_contact_state( [
+			'lang'   => $lang,
+			'errors' => [ 'nonce' => _mavo_contact_t( 'session_expired', $lang ) ],
+			'values' => _mavo_contact_raw_values(),
+		] );
+		return;
 	}
 
 	// Honeypot — silently appear as success to bots.

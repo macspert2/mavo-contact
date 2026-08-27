@@ -106,7 +106,7 @@ function _mavo_contact_all_strings(): array {
 			'collab_url'           => 'https://www.mamanvoyage.com/travailler-avec-maman-voyage/',
 			'email_alt'            => "Vous pouvez aussi m'écrire directement à cette adresse :",
 			'email_aria'           => 'Écrire à %1$s [at] %2$s',
-			'session_expired'      => 'Session expirée. Veuillez rafraîchir la page et réessayer.',
+			'session_expired'      => 'Votre session a expiré pendant la saisie. Vos informations ont été conservées : merci de cliquer à nouveau sur « Envoyer mon message ».',
 			'security_error'       => 'Erreur de sécurité',
 		],
 
@@ -134,7 +134,7 @@ function _mavo_contact_all_strings(): array {
 			// No collab page translation — keys omitted intentionally.
 			'email_alt'            => 'You can also write to me directly at this address:',
 			'email_aria'           => 'Write to %1$s [at] %2$s',
-			'session_expired'      => 'Session expired. Please refresh the page and try again.',
+			'session_expired'      => 'Your session expired while you were typing. Your details have been kept — please click “Send my message” again.',
 			'security_error'       => 'Security error',
 		],
 
@@ -162,7 +162,7 @@ function _mavo_contact_all_strings(): array {
 			// No collab page translation — keys omitted intentionally.
 			'email_alt'            => 'Du kannst mir auch direkt an diese Adresse schreiben:',
 			'email_aria'           => 'An %1$s [at] %2$s schreiben',
-			'session_expired'      => 'Sitzung abgelaufen. Bitte aktualisiere die Seite und versuche es erneut.',
+			'session_expired'      => 'Deine Sitzung ist während der Eingabe abgelaufen. Deine Angaben wurden gespeichert – bitte klicke erneut auf „Nachricht senden“.',
 			'security_error'       => 'Sicherheitsfehler',
 		],
 	];
