@@ -121,7 +121,7 @@ function mavo_contact_maybe_handle(): void {
 	// Email body always in French — admin is French-speaking.
 	// Use the French reason label regardless of submission language.
 	$reason_label_fr = _mavo_contact_reasons( 'fr' )[ $reason ] ?? $reason;
-	$recipient       = apply_filters( 'mavo_contact_recipient_email', get_option( 'admin_email' ) );
+	$recipient       = apply_filters( 'mavo_contact_recipient_email', MAVO_CONTACT_EMAIL );
 	$site_domain     = (string) ( wp_parse_url( home_url(), PHP_URL_HOST ) ?? '' );
 	$subject         = sprintf( '[Maman Voyage] Contact — %s', $reason_label_fr );
 	$page_url        = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ?? '' ) );

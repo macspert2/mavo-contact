@@ -308,7 +308,9 @@ function _mavo_contact_field_message( string $lang, array $errors, array $values
  * Screen readers get the aria-label; HTML source shows a reversed string.
  */
 function _mavo_contact_obfuscated_email_html( string $lang ): string {
-	$email = (string) apply_filters( 'mavo_contact_public_email', get_option( 'admin_email' ) );
+	// Address shown to visitors. Deliberately not admin_email: that is the
+	// site's administrative mailbox, this is the public-facing one.
+	$email = (string) apply_filters( 'mavo_contact_public_email', MAVO_CONTACT_EMAIL );
 	if ( ! is_email( $email ) ) {
 		return '';
 	}
