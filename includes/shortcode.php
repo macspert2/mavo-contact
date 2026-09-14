@@ -8,11 +8,15 @@ defined( 'ABSPATH' ) || exit;
 
 // Register CSS globally; actual enqueue happens inside the shortcode.
 add_action( 'wp_enqueue_scripts', static function () {
+	// filemtime, not the plugin version: editing the stylesheet without
+	// bumping the constant used to leave stale CSS in Autoptimize/Cloudflare.
+	$css = MAVO_CONTACT_DIR . 'assets/css/mavo-contact.css';
+
 	wp_register_style(
 		'mavo-contact',
 		MAVO_CONTACT_URL . 'assets/css/mavo-contact.css',
 		[],
-		MAVO_CONTACT_VERSION
+		file_exists( $css ) ? filemtime( $css ) : MAVO_CONTACT_VERSION
 	);
 } );
 
