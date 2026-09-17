@@ -21,22 +21,47 @@ add_action( 'wp_enqueue_scripts', static function () {
 } );
 
 /**
- * Keep pages holding the form out of full-page caches (Swift Performance and
- * every other cache honouring DONOTCACHEPAGE).
+ * Keep pages holding the form out of full-page caches.
  *
  * The form HTML embeds a WP nonce, valid ~24 h, and the anti-bot timestamp.
  * Cached HTML freezes both: visitors get a long-dead nonce on a page that only
- * just loaded, and the submission is rejected as expired.
+ * just loaded, and the submission is rejected as expired. There is nothing a
+ * visitor can do about it and nothing that reports it — the form just stops
+ * working, for everyone, until the cache entry happens to expire.
+ *
+ * Two mechanisms, because DONOTCACHEPAGE is a convention rather than an API and
+ * not every cache implements it:
+ *
+ *   - DONOTCACHEPAGE, honoured by a good number of caches.
+ *   - cache_enabler_bypass_cache, Cache Enabler's own documented filter, which
+ *     is what decides on this site. The comment here used to name Swift
+ *     Performance; the site has since moved to Cache Enabler, and a silently
+ *     broken contact form is not worth resting on a convention the current
+ *     cache may or may not follow.
  */
 add_action( 'template_redirect', '_mavo_contact_no_cache_on_form_pages', 0 );
 
 function _mavo_contact_no_cache_on_form_pages(): void {
-	$queried = get_queried_object();
-	if ( ! $queried instanceof WP_Post || ! has_shortcode( (string) $queried->post_content, 'mavo_contact_form' ) ) {
+	if ( ! _mavo_contact_page_has_form() ) {
 		return;
 	}
 	_mavo_contact_donotcache();
 	nocache_headers(); // Safe here: template output has not started yet.
+}
+
+/**
+ * Does the post being viewed carry the form shortcode in its stored content?
+ *
+ * Shared by the template_redirect guard and the Cache Enabler filter so the two
+ * cannot disagree about which pages must stay uncached. Returns false when
+ * there is no queried post, which is the right answer for anything running
+ * before the main query.
+ */
+function _mavo_contact_page_has_form(): bool {
+	$queried = get_queried_object();
+
+	return $queried instanceof WP_Post
+		&& has_shortcode( (string) $queried->post_content, 'mavo_contact_form' );
 }
 
 /** Flag the current response as non-cacheable. */
@@ -44,6 +69,32 @@ function _mavo_contact_donotcache(): void {
 	if ( ! defined( 'DONOTCACHEPAGE' ) ) {
 		define( 'DONOTCACHEPAGE', true );
 	}
+}
+
+add_filter( 'cache_enabler_bypass_cache', '_mavo_contact_bypass_cache' );
+
+/**
+ * Cache Enabler's own bypass decision.
+ *
+ * Tests the constant *and* re-derives the answer, because the two become true
+ * at different moments: the constant covers the shortcode's late fallback (a
+ * form placed in a block, widget or template part, which template_redirect
+ * cannot see), while the content check covers Cache Enabler asking before that
+ * shortcode has run.
+ *
+ * @param mixed $bypass Whether the cache is already being bypassed.
+ * @return bool
+ */
+function _mavo_contact_bypass_cache( $bypass ) {
+	if ( $bypass ) {
+		return true;
+	}
+
+	if ( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE ) {
+		return true;
+	}
+
+	return _mavo_contact_page_has_form();
 }
 
 add_shortcode( 'mavo_contact_form', 'mavo_contact_form_shortcode' );
